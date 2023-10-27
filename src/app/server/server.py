@@ -2,10 +2,11 @@ import socket
 import threading
 import os
 import sys
-import json
 
-from src.environment.env import environment as env
-from src.app.server.connection import Connection
+from environment.env import environment as env
+from app.server.connection import Connection
+from app.utils.console import Console
+from app.utils.parser import Parser
 
 class Server():
 
@@ -23,31 +24,92 @@ class Server():
     
     def getSocket(self):
         return self._socket
-
-    def start(self):
-        socket = self.getSocket()
-        socket.bind((self.getIp(), self.getPort()))
-        socket.listen()
-
-        while True:
-            print(f"Server running. Listening on port: {self.getPort()}")
-            connection, address = socket.accept()
-            data = connection.recv(env.MSG_MAX_SIZE).decode("utf-8").split("/")
-            operation = data[1]
-
-            if operation == "CONNECT":
-                clientAdress = data[2]
-                thread = threading.Thread(target=self.clientConnection, args=(clientAdress))
-                thread.start()
-                msg = "R/Connection successful"
-                connection.send(bytes(msg, "utf-8"))
-
-            connection.close()
     
+    def getConnections(self):
+        return self._connections
 
-    def clientConnection(self, clientAddress):
-        pass
+    def run(self):
+        try:
+            socket = self.getSocket()
+            socket.bind((self.getIp(), self.getPort()))
+            socket.listen()
+            Console.box(f"Server running. Listening on: {self.getIp()}:{self.getPort()}")
+
+            while True:
+                clientSocket, clientAddress = socket.accept()
+                Console.log(f"Accepted connection from {clientAddress[0]}:{clientAddress[1]}")
+                request = clientSocket.recv(env.MSG_MAX_SIZE).decode(env.ENCODING)
+                payload = Parser.parseMsg(request)
+                Console.log(f"Received: {request}, payload: {payload}")
+                command = payload["command"]
+
+                if command == "CONNECT":
+                    username = payload["args"]
+                    valid = True
+                    for connection in self.getConnections():
+                        if connection.client_username == username:
+                            valid = False
+                    
+                    if valid:
+                        self.registerClient(clientAddress[0], clientAddress[1], username)
+                        thread = threading.Thread(target=self.handleClient, args=(clientSocket, clientAddress))
+                        thread.start()
+                        response = "RESP/SUCCESS/Connection successful"
+                        clientSocket.send(bytes(response, env.ENCODING))
+                    else:
+                        response = "RESP/ERROR/Username already taken"
+                        clientSocket.send(bytes(response, env.ENCODING))
+                else:
+                    response = "RESP/ERROR/Invalid request"
+                    clientSocket.send(bytes(response, env.ENCODING))
+
+        except Exception as e:
+            Console.log(f"Error: {e}")
+        finally:
+            socket.close()
+
+    def handleClient(self, clientSocket, clientAddress):
+        try:
+            while True:
+                request = clientSocket.recv(env.MSG_MAX_SIZE).decode(env.ENCODING)
+                payload = Parser.parseMsg(request)
+                Console.log(f"Received: {request}, payload: {payload}")
+                command = payload["command"]
+                if command == "CLOSE":
+                    for i, connection in self.getConnections():
+                        if connection.client_ip == clientAddress[0] and connection.client_port == clientAddress[1]:
+                            del self.getConnections()[i]
+                    response = "RESP/SUCCESS/Ending connection"
+                    clientSocket.send(bytes(response, env.ENCODING))
+                    break
+                elif command == "CONNECTIONS":
+                    userList = []
+                    for connection in self.getConnections():
+                        userList.append(connection.client_username)
+                    response = f"RESP/SUCCESS/{userList}"
+                    clientSocket.send(bytes(response, env.ENCODING))
+                elif command == "CONNECTION":
+                    username = payload["args"]
+                    address = ""
+                    for connection in self.getConnections():
+                        if connection.client_username == username:
+                            address = f"{connection.client_ip}:{connection.client_port}"
+                    response = ""
+                    if address == "":
+                        response = "RESP/ERROR/User not found"
+                    else:
+                        response = f"RESP/SUCCESS/{address}"
+                    clientSocket.send(bytes(response, env.ENCODING))
+                else:
+                    response = "RESP/ERROR/Invalid request"
+                    clientSocket.send(bytes(response, env.ENCODING))
+
+        except Exception as e:
+            Console.log(f"Error while hanlding client: {e}")
+        finally:
+            clientSocket.close()
+            Console.log(f"Connection to client {clientAddress[0]}:{clientAddress[1]} closed")
 
 
-    def registerClient(self):
-        pass
+    def registerClient(self, ip, port, username):
+        self.getConnections().append(Connection(ip, port, username))

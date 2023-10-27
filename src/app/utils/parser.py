@@ -1,11 +1,16 @@
-import json
+class Parser():
 
-class Parser:
     def parseMsg(msg: str):
         _msg = msg.split("/")
-        _json = json.dumps({
-            'operation': _msg[0],
-            'command': _msg[1],
-            'payload': _msg[2]
-        })
-        return _json
+        if len(_msg) == 2:
+            payload = {
+                'operation': _msg[0],
+                'command': _msg[1],
+            }
+        elif len(_msg) == 3:
+            payload = {
+                'operation': _msg[0],
+                'command': _msg[1],
+                'args': _msg[2]
+            }
+        return payload
