@@ -1,7 +1,4 @@
 import socket
-import threading
-import os
-import sys
 
 from environment.env import environment as env
 from app.server.connection import Connection
@@ -21,6 +18,8 @@ class Client():
         return self._username
 
     def run(self):
+        """ Client main loop. Tries to connect to the server with an username input. Must be unique.
+        If the server accepts the connection, the client starts the command input loop """
         socket = self.getSocket()
         socket.connect((env.HOST_IP, env.HOST_PORT))
         self.startConnection(self.getUsername())
@@ -44,12 +43,19 @@ class Client():
                 self.closeConnection()
                 break
 
+
+    # ############### #
+    # Command methods #
+    # ############### #
+
     def startConnection(self, username):
+        """ Connection request method. Uses username as primary key. Must be unique """
         socket = self.getSocket()
         msg = f"REQ/CONNECT/{username}"
         socket.send(bytes(msg, env.ENCODING))
 
     def getConnections(self):
+        """ Connection index method. Lists all connected users' usernames """
         socket = self.getSocket()
         msg = f"REQ/CONNECTIONS"
         socket.send(bytes(msg, env.ENCODING))
@@ -59,6 +65,7 @@ class Client():
         Console.log(f"{connectionList}")
 
     def getConnection(self, username):
+        """ Connection getter method. Uses username as primary key. Display the client address associated with given username """
         socket = self.getSocket()
         msg = f"REQ/CONNECTION/{username}"
         socket.send(bytes(msg, env.ENCODING))
@@ -67,6 +74,7 @@ class Client():
         Console.log(f"{payload['args']}")
 
     def closeConnection(self):
+        """ Close connection method """
         socket = self.getSocket()
         msg = "REQ/CLOSE"
         socket.send(bytes(msg, env.ENCODING))

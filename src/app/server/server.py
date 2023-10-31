@@ -1,7 +1,5 @@
 import socket
 import threading
-import os
-import sys
 
 from environment.env import environment as env
 from app.server.connection import Connection
@@ -29,6 +27,7 @@ class Server():
         return self._connections
 
     def run(self):
+        """ Server main loop. The server listen for connection messages and rejects any other message from clients that are not registered """
         try:
             socket = self.getSocket()
             socket.bind((self.getIp(), self.getPort()))
@@ -69,6 +68,7 @@ class Server():
             socket.close()
 
     def handleClient(self, clientSocket, clientAddress):
+        """ Client thread method. The server listens for request messages from registered clients and denies any other messages """
         try:
             while True:
                 request = clientSocket.recv(env.MSG_MAX_SIZE).decode(env.ENCODING)
@@ -76,30 +76,11 @@ class Server():
                 Console.log(f"Received: {request}, payload: {payload}")
                 command = payload["command"]
                 if command == "CLOSE":
-                    for i, connection in self.getConnections():
-                        if connection.client_ip == clientAddress[0] and connection.client_port == clientAddress[1]:
-                            del self.getConnections()[i]
-                    response = "RESP/SUCCESS/Ending connection"
-                    clientSocket.send(bytes(response, env.ENCODING))
-                    break
+                    self.closeConnection(clientSocket, clientAddress)
                 elif command == "CONNECTIONS":
-                    userList = []
-                    for connection in self.getConnections():
-                        userList.append(connection.client_username)
-                    response = f"RESP/SUCCESS/{userList}"
-                    clientSocket.send(bytes(response, env.ENCODING))
+                    self.listConnections(clientSocket)
                 elif command == "CONNECTION":
-                    username = payload["args"]
-                    address = ""
-                    for connection in self.getConnections():
-                        if connection.client_username == username:
-                            address = f"{connection.client_ip}:{connection.client_port}"
-                    response = ""
-                    if address == "":
-                        response = "RESP/ERROR/User not found"
-                    else:
-                        response = f"RESP/SUCCESS/{address}"
-                    clientSocket.send(bytes(response, env.ENCODING))
+                    self.getConnectionAddress(clientSocket, payload["args"])
                 else:
                     response = "RESP/ERROR/Invalid request"
                     clientSocket.send(bytes(response, env.ENCODING))
@@ -111,5 +92,40 @@ class Server():
             Console.log(f"Connection to client {clientAddress[0]}:{clientAddress[1]} closed")
 
 
+    # ############### #
+    # Command methods #
+    # ############### #
+
     def registerClient(self, ip, port, username):
+        """ Appends the client connection in the server connection list """
         self.getConnections().append(Connection(ip, port, username))
+
+    def closeConnection(self, clientSocket, clientAddress):
+        """ Close connection command method. The server searches for the connected client and removes the connection from the connection list if it exists """
+        connectionList = self.getConnections()
+        for i in range(len(connectionList)):
+            if connectionList[i].client_ip == clientAddress[0] and connectionList[i].client_port == clientAddress[1]:
+                del self.getConnections()[i]
+        response = "RESP/SUCCESS/Ending connection"
+        clientSocket.send(bytes(response, env.ENCODING))
+    
+    def listConnections(self, clientSocket):
+        """ Connection index method """
+        userList = []
+        for connection in self.getConnections():
+            userList.append(connection.client_username)
+        response = f"RESP/SUCCESS/{userList}"
+        clientSocket.send(bytes(response, env.ENCODING))
+    
+    def getConnectionAddress(self, clientSocket, username):
+        """ Connection getter method. Uses username as primary key """
+        address = ""
+        for connection in self.getConnections():
+            if connection.client_username == username:
+                address = f"{connection.client_ip}:{connection.client_port}"
+        response = ""
+        if address == "":
+            response = "RESP/ERROR/User not found"
+        else:
+            response = f"RESP/SUCCESS/{address}"
+        clientSocket.send(bytes(response, env.ENCODING))
