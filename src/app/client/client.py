@@ -209,7 +209,9 @@ class Client():
         vid = cv2.VideoCapture(0)
         vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
+        print('aqui')
         while True:
+            print('dkljghf')
             time.sleep(0.1)
             img, frame = vid.read()
             a = pickle.dumps(frame)
@@ -236,7 +238,6 @@ class Client():
             time.sleep(0.01)
             data.append(stream.read(env.AUDIO_CHUNK))
             if len(data) > 0:
-                Console.log(f"Sending audio data...{data[0][0:10]}")
                 self._audioSocket.sendto(data.pop(0), (ip, port))
 
 
@@ -273,6 +274,5 @@ class Client():
             frames_per_buffer= env.AUDIO_CHUNK
         )
         while True:
-            Console.log("Recieving audio data...")
             audioData, _ = self._audioSocket.recvfrom(env.BUFF_SIZE)
             stream.write(audioData)
