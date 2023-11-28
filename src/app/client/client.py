@@ -166,12 +166,12 @@ class Client():
                         connection.send(bytes(resp, env.ENCODING))
                         Console.log('Connection accepted')
                         Console.log('Starting video conference...')
-                        # videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
-                        # audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
+                        videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
+                        audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
                         videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
                         audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
-                        # videoSendThread.start()
-                        # audioSendThread.start()
+                        videoSendThread.start()
+                        audioSendThread.start()
                         videoRecvThread.start()
                         audioRecvThread.start()
                     elif option == 'n':
@@ -192,8 +192,8 @@ class Client():
                     Console.log('Starting video conference...')
                     videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
                     audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
-                    # videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
-                    # audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
+                    videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
+                    audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
                     videoSendThread.start()
                     audioSendThread.start()
                     # videoRecvThread.start()
@@ -244,7 +244,7 @@ class Client():
 
     def handleVideoRecieverSocket(self):
         while True:
-            data, _ = self._videoSocket.recv(100000000)
+            data, _ = self._videoSocket.recvfrom(100000000)
             data = pickle.loads(data)
             data = cv2.imdecode(data, cv2.IMREAD_COLOR)
             cv2.imshow('Video', data)
