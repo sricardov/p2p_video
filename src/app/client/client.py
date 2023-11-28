@@ -2,11 +2,9 @@ import socket
 import threading
 import pyaudio
 import cv2
-import imutils
-import numpy as np
-import base64
 import time
-
+import pickle
+import struct
 
 from environment.env import environment as env
 from app.utils.console import Console
@@ -168,12 +166,12 @@ class Client():
                         connection.send(bytes(resp, env.ENCODING))
                         Console.log('Connection accepted')
                         Console.log('Starting video conference...')
-                        videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
-                        audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
+                        # videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
+                        # audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
                         videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
                         audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
-                        videoSendThread.start()
-                        audioSendThread.start()
+                        # videoSendThread.start()
+                        # audioSendThread.start()
                         videoRecvThread.start()
                         audioRecvThread.start()
                     elif option == 'n':
@@ -194,12 +192,12 @@ class Client():
                     Console.log('Starting video conference...')
                     videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
                     audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
-                    videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
-                    audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
+                    # videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
+                    # audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
                     videoSendThread.start()
                     audioSendThread.start()
-                    videoRecvThread.start()
-                    audioRecvThread.start()
+                    # videoRecvThread.start()
+                    # audioRecvThread.start()
                 elif payload['command'] == 'REJECT':
                     Console.log(f'Connection rejected by {username}')
                     break
@@ -209,30 +207,21 @@ class Client():
 
     def handleVideoSenderSocket(self, ip, port):
         vid = cv2.VideoCapture(0)
-        fps, st, frames, cnt = (0, 0, 20, 0)
-
-        while True:
-            WIDTH = 400
-            while vid.isOpened():
-                _, frame = vid.read()
-                frame = imutils.resize(frame,width=WIDTH)
-                _, buffer = cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,80])
-                message = base64.b64encode(buffer)
-                self._videoSocket.sendto(message, (ip, port))
-                frame = cv2.putText(frame,'FPS: '+str(fps),(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-                cv2.imshow('TRANSMITTING VIDEO',frame)
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('q'):
-                    self._videoSocket.close()
-                    break
-                if cnt == frames:
-                    try:
-                        fps = round(frames/(time.time()-st))
-                        st=time.time()
-                        cnt=0
-                    except:
-                        pass
-                cnt+=1
+        vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
+        print("aqui")
+        while (vid.isOpened()):
+            print("aqui2")
+            img, frame = vid.read()
+            a = pickle.dumps(frame)
+            message = struct.pack("Q", len(a)) + a
+            self._videoSocket.sendto(message, (ip, port))
+            cv2.imshow("Sender's Video", frame)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                self._videoSocket.close()
+                break;
+        cv2.destroyAllWindows()
 
     def handleAudioSenderSocket(self, ip, port):
         p = pyaudio.PyAudio()
@@ -243,34 +232,37 @@ class Client():
             input= True,
             frames_per_buffer= env.AUDIO_CHUNK    
         )
+        data = []
         while True:
-            data = stream.read(env.AUDIO_CHUNK)
-            if data:
-                Console.log(f"Sending audio data...")
-                self._audioSocket.sendto(data, (ip, port))
+            time.sleep(0.01)
+            data.append(stream.read(env.AUDIO_CHUNK))
+            if len(data) > 0:
+                Console.log(f"Sending audio data...{data[0][0:10]}")
+                self._audioSocket.sendto(data.pop(0), (ip, port))
 
 
     def handleVideoRecieverSocket(self):
-        fps, st, frames_to_count, cnt = (0,0,20,0)
+        data = b""
+        payload_size = struct.calcsize("Q")
         while True:
-            packet,_ = self._videoSocket.recvfrom(env.BUFF_SIZE)
-            data = base64.b64decode(packet,' /')
-            npdata = np.fromstring(data,dtype=np.uint8)
-            frame = cv2.imdecode(npdata,1)
-            frame = cv2.putText(frame,'FPS: '+str(fps),(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-            cv2.imshow("RECEIVING VIDEO", frame)
+            while len(data) < payload_size:
+                packet = self._videoSocket.recv(4 * 1024)
+                if not packet: break
+                data += packet
+            packed_msg_size = data[:payload_size]
+            data = data[payload_size:]
+            msg_size = struct.unpack("Q", packed_msg_size)[0]
+
+            while len(data) < msg_size:
+                data += self._videoSocket.recv(4 * 1024)
+            frame_data = data[:msg_size]
+            data = data[msg_size:]
+            frame = pickle.loads(frame_data)
+            cv2.imshow("Live Streaming Video Chat", frame)
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                self._videoSocket.close()
                 break
-            if cnt == frames_to_count:
-                try:
-                    fps = round(frames_to_count/(time.time()-st))
-                    st=time.time()
-                    cnt=0
-                except:
-                    pass
-            cnt+=1
+        self._videoSocket.close()
 
     def handleAudioRecieverSocket(self):
         p = pyaudio.PyAudio()
@@ -279,6 +271,7 @@ class Client():
             channels= env.CHANNELS,
             rate= env.RATE,
             output= True,
+            frames_per_buffer= env.AUDIO_CHUNK
         )
         while True:
             Console.log("Recieving audio data...")
