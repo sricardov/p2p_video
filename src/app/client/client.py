@@ -168,12 +168,12 @@ class Client():
                         Console.log('Starting video conference...')
                         videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
                         audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
-                        videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
-                        audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
+                        # videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
+                        # audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
                         videoSendThread.start()
                         audioSendThread.start()
-                        videoRecvThread.start()
-                        audioRecvThread.start()
+                        # videoRecvThread.start()
+                        # audioRecvThread.start()
                     elif option == 'n':
                         resp = "RESP/REJECT"
                         connection.send(bytes(resp, env.ENCODING))
@@ -190,16 +190,14 @@ class Client():
                     audioAddress = payload['args'].split(';')[2].split(':')
                     Console.log(f'Connection accepted by {username}')
                     Console.log('Starting video conference...')
-                    videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
-                    audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
+                    # videoSendThread = threading.Thread(target=self.handleVideoSenderSocket, args=(videoAddress[0], int(videoAddress[1])))
+                    # audioSendThread = threading.Thread(target=self.handleAudioSenderSocket, args=(audioAddress[0], int(audioAddress[1])))
                     videoRecvThread = threading.Thread(target=self.handleVideoRecieverSocket)
                     audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
-                    videoSendThread.start()
-                    audioSendThread.start()
+                    # videoSendThread.start()
+                    # audioSendThread.start()
                     videoRecvThread.start()
                     audioRecvThread.start()
-                    self._clientControlSocket.close()
-                    break
                 elif payload['command'] == 'REJECT':
                     Console.log(f'Connection rejected by {username}')
                     break
