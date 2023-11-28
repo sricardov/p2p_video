@@ -209,9 +209,8 @@ class Client():
         vid = cv2.VideoCapture(0)
         vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
-        print("aqui")
-        while (vid.isOpened()):
-            print("aqui2")
+        while True:
+            time.sleep(0.1)
             img, frame = vid.read()
             a = pickle.dumps(frame)
             message = struct.pack("Q", len(a)) + a
