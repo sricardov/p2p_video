@@ -198,6 +198,8 @@ class Client():
                     audioSendThread.start()
                     videoRecvThread.start()
                     audioRecvThread.start()
+                    self._clientControlSocket.close()
+                    break
                 elif payload['command'] == 'REJECT':
                     Console.log(f'Connection rejected by {username}')
                     break
@@ -206,14 +208,8 @@ class Client():
 
 
     def handleVideoSenderSocket(self, ip, port):
-        for videoPort in range(50152, 51152):
-            try:
-                videoSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                videoSocket.bind(('localhost', videoPort))
-                videoSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
-                break
-            except:
-                pass
+        videoSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        videoSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
         vid = cv2.VideoCapture(0)
         vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
@@ -232,14 +228,8 @@ class Client():
         vid.release()
 
     def handleAudioSenderSocket(self, ip, port):
-        for audioPort in range(51152, 52152):
-            try:
-                audioSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                audioSocket.bind(('localhost', audioPort))
-                audioSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
-                break
-            except:
-                pass
+        audioSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        audioSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
         p = pyaudio.PyAudio()
         stream = p.open(
             format= pyaudio.paInt16,
