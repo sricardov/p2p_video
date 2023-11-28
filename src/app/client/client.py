@@ -206,6 +206,14 @@ class Client():
 
 
     def handleVideoSenderSocket(self, ip, port):
+        for videoPort in range(50152, 51152):
+            try:
+                videoSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                videoSocket.bind(('localhost', videoPort))
+                videoSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
+                break
+            except:
+                pass
         vid = cv2.VideoCapture(0)
         vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
@@ -215,15 +223,23 @@ class Client():
             cv2.imshow("Sender's Video", frame)
             _, buffer = cv2.imencode('.jpeg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
             bytes = pickle.dumps(buffer)
-            self._videoSocket.sendto(bytes, (ip, port))
+            videoSocket.sendto(bytes, (ip, port))
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
-                self._videoSocket.close()
+                videoSocket.close()
                 break;
         cv2.destroyAllWindows()
         vid.release()
 
     def handleAudioSenderSocket(self, ip, port):
+        for audioPort in range(51152, 52152):
+            try:
+                audioSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                audioSocket.bind(('localhost', audioPort))
+                audioSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, env.BUFF_SIZE)
+                break
+            except:
+                pass
         p = pyaudio.PyAudio()
         stream = p.open(
             format= pyaudio.paInt16,
@@ -237,7 +253,7 @@ class Client():
             time.sleep(0.01)
             data.append(stream.read(env.AUDIO_CHUNK))
             if len(data) > 0:
-                self._audioSocket.sendto(data.pop(0), (ip, port))
+                audioSocket.sendto(data.pop(0), (ip, port))
 
 
     def handleVideoRecieverSocket(self):
