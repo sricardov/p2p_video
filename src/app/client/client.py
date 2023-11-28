@@ -214,10 +214,10 @@ class Client():
             print('dkljghf')
             time.sleep(0.1)
             img, frame = vid.read()
+            cv2.imshow("Sender's Video", frame)
             a = pickle.dumps(frame)
             message = struct.pack("Q", len(a)) + a
             self._videoSocket.sendto(message, (ip, port))
-            cv2.imshow("Sender's Video", frame)
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 self._videoSocket.close()
