@@ -215,14 +215,15 @@ class Client():
             time.sleep(0.1)
             img, frame = vid.read()
             cv2.imshow("Sender's Video", frame)
-            a = pickle.dumps(frame)
-            message = struct.pack("Q", len(a)) + a
-            self._videoSocket.sendto(message, (ip, port))
+            ret, buffer = cv2.imencode('.jpeg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
+            bytes = pickle.dumps(buffer)
+            self._videoSocket.sendto(bytes, (ip, port))
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 self._videoSocket.close()
                 break;
         cv2.destroyAllWindows()
+        vid.release()
 
     def handleAudioSenderSocket(self, ip, port):
         p = pyaudio.PyAudio()
@@ -242,27 +243,14 @@ class Client():
 
 
     def handleVideoRecieverSocket(self):
-        data = b""
-        payload_size = struct.calcsize("Q")
         while True:
-            while len(data) < payload_size:
-                packet = self._videoSocket.recv(4 * 1024)
-                if not packet: break
-                data += packet
-            packed_msg_size = data[:payload_size]
-            data = data[payload_size:]
-            msg_size = struct.unpack("Q", packed_msg_size)[0]
-
-            while len(data) < msg_size:
-                data += self._videoSocket.recv(4 * 1024)
-            frame_data = data[:msg_size]
-            data = data[msg_size:]
-            frame = pickle.loads(frame_data)
-            cv2.imshow("Live Streaming Video Chat", frame)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
+            data, _ = self._videoSocket.recv(100000000)
+            data = pickle.loads(data)
+            data = cv2.imdecode(data, cv2.IMREAD_COLOR)
+            cv2.imshow('Video', data)
+            if cv2.waitKey(10) == 13:
                 break
-        self._videoSocket.close()
+        cv2.destroyAllWindows()           
 
     def handleAudioRecieverSocket(self):
         p = pyaudio.PyAudio()
