@@ -196,8 +196,8 @@ class Client():
                     audioRecvThread = threading.Thread(target=self.handleAudioRecieverSocket)
                     videoSendThread.start()
                     audioSendThread.start()
-                    # videoRecvThread.start()
-                    # audioRecvThread.start()
+                    videoRecvThread.start()
+                    audioRecvThread.start()
                 elif payload['command'] == 'REJECT':
                     Console.log(f'Connection rejected by {username}')
                     break
@@ -209,13 +209,11 @@ class Client():
         vid = cv2.VideoCapture(0)
         vid.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         vid.set(cv2.CAP_PROP_FRAME_HEIGHT, 500)
-        print('aqui')
         while True:
-            print('dkljghf')
             time.sleep(0.1)
-            img, frame = vid.read()
+            _, frame = vid.read()
             cv2.imshow("Sender's Video", frame)
-            ret, buffer = cv2.imencode('.jpeg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
+            _, buffer = cv2.imencode('.jpeg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 30])
             bytes = pickle.dumps(buffer)
             self._videoSocket.sendto(bytes, (ip, port))
             key = cv2.waitKey(1) & 0xFF
