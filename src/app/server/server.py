@@ -1,6 +1,8 @@
 import socket
 import threading
+import os
 
+from pyfiglet import Figlet
 from environment.env import environment as env
 from app.server.connection import Connection
 from app.utils.console import Console
@@ -43,14 +45,17 @@ class Server():
                 command = payload["command"]
 
                 if command == "CONNECT":
-                    username = payload["args"]
+                    username = payload["args"].split(';')[0]
+                    controlPort = payload["args"].split(';')[1]
+                    videoPort = payload["args"].split(';')[2]
+                    audioPort = payload["args"].split(';')[3]
                     valid = True
                     for connection in self.getConnections():
                         if connection.client_username == username:
                             valid = False
                     
                     if valid:
-                        self.registerClient(clientAddress[0], clientAddress[1], username)
+                        self.registerClient(clientAddress[0], clientAddress[1], username, controlPort, videoPort, audioPort)
                         thread = threading.Thread(target=self.handleClient, args=(clientSocket, clientAddress))
                         thread.start()
                         response = "RESP/SUCCESS/Connection successful"
@@ -81,6 +86,8 @@ class Server():
                     self.listConnections(clientSocket)
                 elif command == "CONNECTION":
                     self.getConnectionAddress(clientSocket, payload["args"])
+                elif command == "CALL":
+                    pass
                 else:
                     response = "RESP/ERROR/Invalid request"
                     clientSocket.send(bytes(response, env.ENCODING))
@@ -96,9 +103,9 @@ class Server():
     # Command methods #
     # ############### #
 
-    def registerClient(self, ip, port, username):
+    def registerClient(self, ip, port, username, controlPort, videoPort, audioPort):
         """ Appends the client connection in the server connection list """
-        self.getConnections().append(Connection(ip, port, username))
+        self.getConnections().append(Connection(ip, port, username, controlPort, videoPort, audioPort))
 
     def closeConnection(self, clientSocket, clientAddress):
         """ Close connection command method. The server searches for the connected client and removes the connection from the connection list if it exists """
@@ -122,7 +129,7 @@ class Server():
         address = ""
         for connection in self.getConnections():
             if connection.client_username == username:
-                address = f"{connection.client_ip}:{connection.client_port}"
+                address = f"{connection.client_ip}:{connection.client_control_port}\n"
         response = ""
         if address == "":
             response = "RESP/ERROR/User not found"

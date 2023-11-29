@@ -1,7 +1,7 @@
 class Console:
     def log(msg):
         """Print message on console"""
-        print(f'>>> {msg}')
+        print(f'\n>>> {msg}')
     
     def box(msg, indent=1, width=None, title=None):
         """Print message-box with optional title."""
